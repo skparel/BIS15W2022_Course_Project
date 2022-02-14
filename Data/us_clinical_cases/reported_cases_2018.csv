@@ -1,0 +1,11 @@
+﻿Jurisdictions,Any clinical or colonization/screening cases,Number of clinical cases,Range
+CA,yes,1,1
+CT,yes,0,"0 clinical cases, but ≥ 1 screening case"
+FL,yes,3,2 to 10
+IL,yes,109,101 or more
+MD,yes,1,1
+NJ,yes,54,51 to 100
+NY,yes,158,101 or more
+OK,yes,1,1
+TN,yes,1,1
+VA,yes,1,1

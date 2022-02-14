@@ -1,0 +1,23 @@
+﻿state_abbreviation,Any_cases,Total_clinical,Range
+CA,yes,24,11 to 50
+CO,yes,0,"0 clinical cases, but ≥1 screening case"
+DC,yes,0,"0 clinical cases, but ≥1 screening case"
+FL,yes,26,11 to 50
+GA,yes,1,1
+IL,yes,170,101 or more
+IN,yes,3,2 to 10
+MA,yes,1,1
+MD,yes,6,2 to 10
+MN,yes,1,1
+MS,yes,1,1
+NC,yes,1,1
+NJ,yes,52,51 to 100
+NY,yes,178,101 or more
+TX,yes,5,2 to 10
+VA,yes,0,"0 clinical cases, but ≥1 screening case"
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
