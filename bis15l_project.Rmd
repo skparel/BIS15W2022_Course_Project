@@ -1,0 +1,110 @@
+---
+title: "bis15l_project"
+author: "Sidney Parel"
+date: "2/25/2022"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE)
+library(tidyverse)
+```
+
+## Load the U.S. clinical cases data sets.
+The reported clinical cases data sets for the years 2016 - 2021 contain the 
+same variables but do not have the same column names. Therefore, before merging 
+these data sets, we standardized the column names and removed missing values.
+```{r, message = FALSE}
+## Load the reported clinical cases (rcc) data sets:
+# Obtain file names.
+rcc_files <- list.files(path = "Data/us_clinical_cases", 
+                        pattern = ".csv", 
+                        full.names = TRUE)
+
+# Store all data sets in a list.
+rcc <- rcc_files %>% 
+  lapply(read_csv)
+
+# Rename the data sets by year.
+rcc_names <- list.files(path = "Data/us_clinical_cases", 
+                        pattern = ".csv") %>% 
+  strsplit(".csv") %>% 
+  unlist()
+names(rcc) <- rcc_names
+
+# Check if the number of columns is the same in each data set.
+# for (i in 1:(length(rcc) - 1)){
+  # print(dim(rcc[[i]])[2] == dim(rcc[[i + 1]])[2])}
+    # number of cols in 2019 daa does not match 2020 data
+    # number of cols in 2020 does not match 2021 data
+
+# check the columns in the 2020 data set.
+# rcc$reported_cases_2020 %>% 
+#   colnames()
+    # Empty columns
+
+# Remove empty columns in the 2020 data set.
+rcc$reported_cases_2020 <- rcc$reported_cases_2020 %>% 
+  select(1:4)
+
+# Check that number of columns match in all data sets after removing the empty 
+# columns in the 2020 data set.
+# for (i in 1:(length(rcc) - 1)){
+#  print(dim(rcc[[i]])[2] == dim(rcc[[i + 1]])[2])}
+    # All data sets now have the same number of columns
+
+# Check that the column names match across all data sets.
+# for (i in 1:(length(rcc) - 1)){
+#  print(colnames(rcc[[i]]) == colnames(rcc[[i + 1]]))}
+  # The columns contain the same data types, but the names do not match
+  # across all data sets.
+```
+
+```{r}
+## Standardize the column names and variable types:
+# Create a vector containing the new names.
+rcc_col_names <- c("jurisdiction", "any_cases", "clinical_cases", "range")
+
+# Assign the new names to all data sets.
+rcc <- rcc %>% 
+  lapply(setNames, rcc_col_names)
+
+# Change the column variable types.
+# for loop solution
+for (i in 1:length(rcc)){
+  rcc[[i]] <- rcc[[i]] %>% 
+    mutate(across(where(is.character), factor))
+}
+# purr solution?
+
+
+## Add a year column to all data sets:
+# Obtain all years in the list of data sets.
+rcc_years <- rcc_names %>% 
+  str_remove("reported_cases_") %>% 
+  factor()
+
+# Add the year to all rows.
+# for loop solution
+# for (i in 1:length(rcc)){
+#  rcc[[i]] <- rcc[[i]] %>% 
+#    mutate(year = rcc_years[i])}
+
+# purr solution
+rcc <- rcc %>%
+  map2(rcc_years, ~mutate(.x, year = .y))
+```
+
+```{r}
+# Merge the data sets:
+# Drop any rows with non-clinical case counts.
+all_reported_cases <- rcc %>% 
+  bind_rows() %>% 
+  relocate(year) %>% 
+  arrange(year) %>% 
+  filter(!is.na(jurisdiction),
+         !clinical_cases == 0) %>% 
+  select(!any_cases) 
+
+# write_csv(all_reported_cases, "all_reported_cases.csv")
+```
+
