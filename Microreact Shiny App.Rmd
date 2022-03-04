@@ -1,0 +1,121 @@
+---
+title: "Microreact Shiny App"
+author: "Kelsey Martin"
+date: "3/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The Libraries
+
+```{r}
+library(readr)
+library(tidyverse)
+library(janitor)
+library(ggthemes)
+library(shiny)
+library(shinydashboard)
+library(paletteer)
+```
+## The Data:
+```{r}
+microreact<- read_csv("Data/microreact_isolates.csv")
+microreact <- janitor::clean_names(microreact)
+```
+
+```{r}
+case_counts <- microreact %>% 
+  count(country, year)
+```
+
+## My Palette
+
+```{r}
+colors <- paletteer::palettes_d_names
+my_palette <- paletteer_d("calecopal::kelp2")
+```
+
+
+##Shiny App:
+
+-  Look at case counts per year by country?
+
+```{r not working shiny app}
+ui <- fluidPage(    
+  
+  titlePanel("Case Counts per Year by Country"), # give the page a title
+  
+  # generate a row with a sidebar
+  sidebarLayout(      
+    
+  # define the sidebar with one input
+  sidebarPanel(
+  selectInput("country", " Select Country:", choices=unique(case_counts$country)), hr(),
+  helpText()),
+    
+  # create a spot for the barplot
+  mainPanel(
+  plotOutput("casecount_plot"))
+  )
+  )
+
+  # define a server for the Shiny app
+  server <- function(input, output, session) {
+  
+  # fill in the spot we created for a plot
+  output$casecountplot <- renderPlot({
+    
+    case_counts %>% 
+    filter(country == input$country) %>% 
+    ggplot(aes(x=year, y=n)) + 
+    geom_line()
+  })
+  }
+
+shinyApp(ui, server)
+```
+
+```{r working shiny app}
+library(shiny)
+
+ui <- dashboardPage(
+  dashboardHeader(title = "Case Counts per Year by Country"),
+  dashboardSidebar(disable = T),
+  dashboardBody(
+  fluidRow(
+  box(title = "Plot Options", width = 3,
+  selectInput("country",
+              " Select Country",
+              choices=unique(case_counts$country)), 
+              selected = "Australia"),
+  
+  ), # close the first box
+  box(title = "Case Count", width = 7,
+  plotOutput("plot", width = "500px", height = "400px")
+  ) # close the second box
+  ) # close the row
+  ) # close the dashboard body
+ # close the ui
+
+server <- function(input, output, session) { 
+  output$plot <- renderPlot({
+    case_counts %>% 
+      filter(country==input$country) %>%
+  ggplot(aes(x = year, y=n, color=country)) +
+      geom_col() + 
+      theme_classic()+
+       scale_fill_manual(values = my_palette)+
+      labs(x="Year")
+  })
+  session$onSessionEnded(stopApp)
+  }
+
+shinyApp(ui, server)
+```
+I think I am going to have to change the way that dates are treated before this works
+
+
+
