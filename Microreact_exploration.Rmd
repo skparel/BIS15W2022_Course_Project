@@ -1,0 +1,236 @@
+---
+title: "microreact data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##The Data
+
+```{r}
+library(readr)
+library(tidyverse)
+library(janitor)
+library(here)
+library(naniar)
+library(ggthemes)
+library(shiny)
+library(shinydashboard)
+library(viridis)
+
+```
+
+```{r}
+microreact<- read_csv("Data/microreact_isolates.csv")
+microreact <- janitor::clean_names(microreact)
+View(microreact)
+```
+
+```{r}
+library(paletteer)
+colors <- paletteer::palettes_d_names
+my_palette <- paletteer_d("calecopal::kelp2")
+```
+
+
+```{r}
+summary(microreact)
+```
+
+- What I want to look at:
+    - incidence of cases by year and by country
+    - incidence of AMR genes over time 
+        - Convert my categorical data to continuous w/`count`
+    - map of outbreaks and appearance of resistance
+        - Find relationship between resistance emergence and *C.auris* emergence
+    
+- More data that I want to find more of:
+    - More info on AMR resistance genes
+        - Info on genotypes (specifically ERG11 & FKS1 genes)
+        - Info on prevalence
+        
+        
+## Cases by year and by country:
+-  For abx resistance specifically?
+-  make bar plot for each country and facet grid by year?
+-  make a line graph by year for each country and facet that?
+    -  Too many countries for that-=8
+-  
+```{r}
+case_counts <- microreact %>% 
+  count(country, year)
+```
+
+```{r}
+
+```
+
+Mutating Data for showing resistance:
+add column:
+-  NR: Not resistant to FCZ or MCF (both == "Not_Resistant")
+-  FCZ: Resistant to FCZ but not MCF or AMB
+-  MCF: Resistant to MCF but not FCZ or AMB
+-  AMB: Resistant to AMB not MCF or FCZ
+-  MDR: Resisant to 2/3 drugs
+-  XDR: Resistant to AMB, FCZ, and MCF (both== "Resistant")
+
+*** Want to make graph of case#'s of these to show AMR resistance increase
+
+```{r}
+#Here I am adding a column that codes for type of drug resistance
+
+microreact_drug_resistance <- microreact %>% 
+  mutate( drug_resistance = case_when(
+    fcz=="Not_Resistant"& mcf=="Not_Resistant"& amb=="Not_Resistant" ~ "NR",
+    fcz=="Resistant"& mcf=="Not_Resistant"& amb=="Not_Resistant" ~ "FCZ",
+    fcz=="Not_Resistant" & mcf=="Resistant" & amb=="Not_Resistant" ~ "MCF",
+    fcz=="Not_Resistant" & mcf=="Not_Resistant" & amb=="Resistant" ~ "AMB",
+    
+    fcz=="Resistant"& mcf=="Resistant"& amb=="Not_Resistant" ~ "MDR",
+    fcz=="Resistant"& mcf=="Not_Resistant"& amb=="Resistant" ~ "MDR",
+    fcz=="Not_Resistant"& mcf=="Resistant"& amb=="Resistant" ~ "MDR",
+    
+    fcz=="Resistant"& mcf=="Resistant"& amb=="Resistant" ~ "XDR"
+    
+    
+    
+  ))
+```
+
+
+Mutating data for showing ERG11 and FKS1 gene presence:
+-  ERG11: `erg11`!= "WT" , `fks1`=="WT"
+-  FSK1: `fsk1` !="WT", `erg11`== "WT"
+-  ERG11 and FKS1: `erg11`!= "WT", `fsk1` !="WT"
+_  No AMR genes:  `fks1`=="WT", erg11`== "WT"
+
+
+***  Make Venn Diagram: show relation of erg11 and fsk1 to drug resistance
+
+```{r}
+#Here I am adding another column that codes for presence or absence of known drug resistance genes
+
+microreact_drug_resistance <- microreact_drug_resistance %>% 
+  mutate( amr_gene = case_when(
+    erg11 != "WT" & fks1=="WT" ~ "ERG11",
+    fks1 !="WT"& erg11 == "WT" ~ "FKS1",
+    erg11 != "WT" & fks1 !="WT" ~ "ERG11 & FKS1",
+    fks1 =="WT" & erg11 == "WT" ~ "No AMR genes"
+    
+    
+))
+
+```
+
+Venn Diagram: showing AMR genes that are associated with drug resistance:
+
+
+```{r}
+library(ggVennDiagram)
+```
+
+combine 2 genes into 1 and get rid of SDR
+
+```{r}
+#my questions: Does having an AMR gene correlate with drug resistance?
+
+#First I need to make the vectors
+
+#vectors for drug resistance:
+
+one_drug_resistant_vec <- 
+  microreact_drug_resistance %>% 
+  filter(drug_resistance== "FCZ"|drug_resistance=="AMB"|drug_resistance=="MCF") %>% 
+  pull(id)
+
+mdr_resistant_vec <- microreact_drug_resistance %>% 
+  filter(drug_resistance=="MDR") %>% 
+  pull(id)
+
+xdr_resistant_vec <- microreact_drug_resistance %>% 
+  filter(drug_resistance=="XDR") %>% 
+  pull(id)
+
+no_resistance_vec <- microreact_drug_resistance %>% 
+  filter(drug_resistance=="NR") %>% 
+  pull(id)
+
+#vectors for genes:
+
+single_gene_vec <- microreact_drug_resistance %>% 
+  filter(amr_gene=="FKS1"|amr_gene=="ERG11") %>% 
+  pull(id)
+
+combo_genes_vec <- microreact_drug_resistance %>% 
+  filter(amr_gene=="ERG11 & FKS1") %>% 
+  pull(id)
+
+no_genes_vec <- microreact_drug_resistance %>% 
+  filter(amr_gene=="No AMR genes") %>% 
+  pull(id)
+
+drug_gene_list <- list(mdr_resistant_vec, xdr_resistant_vec, no_resistance_vec, single_gene_vec, combo_genes_vec, no_genes_vec)
+```
+
+
+```{r}
+ggVennDiagram(drug_gene_list, 
+              category.names=c("MDR", "XDR", "NR", "ERG11 OR FKS1", "ERG11 AND FKS1", "No AMR genes"), 
+              label="count"
+              )
+```
+
+OK this is too complicated, need a different approach
+
+Heat map:
+
+```{r}
+microreact_drug_resistance %>% 
+  ggplot(aes(drug_resistance, amr_gene))+
+  geom_tile()+
+  scale_fill_viridis_b()
+```
+
+```{r}
+library(ggplot2)
+```
+
+
+```{r}
+microreact_drug_resistance %>% 
+  count(drug_resistance, amr_gene) %>% 
+  filter(drug_resistance!="NA") %>% 
+  ggplot(aes(drug_resistance, amr_gene, fill=n))+
+  geom_tile(color="black")+
+  geom_text(aes(label = n), color = "white", size = 4)+
+  scale_fill_viridis()+
+  theme_classic()+
+  labs(title="Heat Map Comparison of AMR Genes and Drug Resistance",
+       x="Drug Resistance",
+       y="AMR Gene",
+       caption="Blank: n=0.
+       Drugs:AMB= Amphotericin B, FCZ= Fluconazole, MCF= Micafungin, MDR= Multi-Drug Resistance, XDR= Extreme Drug Resistance (all 3),NR= No Drug Resistance.
+       Data from Tracing the Evolutionary History and Global Expansion of Candida auris Using Population Genomic Analyses' by Chow et al 2020 ")+
+  theme(plot.caption= element_text(hjust=0))
+  
+  
+```
+
+```{r}
+microreact_drug_resistance %>% count(drug_resistance, amr_gene)
+```
+-  From this heat map and table we can see that the ERG11 gene has a lot of overlap with drug resistance- both SDR and MDR
+-  We can also see that cases with no AMR genes also have more cases without drug resistance
+
+```{r}
+microreact_drug_resistance %>% 
+  ggplot(aes(drug_resistance, amr_gene))+
+  geom_tile()+
+  scale_fill_viridis_b()
+```
+
+
+## Map Making!
+
