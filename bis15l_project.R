@@ -72,7 +72,7 @@ for (i in 1:length(rcc)){
 # Obtain all years in the list of data sets.
 rcc_years <- rcc_names %>% 
   str_remove("reported_cases_") %>% 
-  factor()
+  as.integer()
 
 # Add the year to all rows.
 # for loop solution
@@ -126,3 +126,84 @@ ncbi_clinical_isolates <- ncbi_clinical_isolates %>%
 # Change column types
 ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
   mutate(across(where(is.character), factor))
+
+
+## Create an animated map for reported clinical cases:
+library(maps)
+
+# Load the state boundary basemap.
+states <- map_data("state.vbm") %>% 
+  tibble() %>% 
+  mutate(region = factor(region))
+
+USplot <- ggplot() +
+  geom_polygon(data = states, aes(x=long, y = lat, group = group)) 
+
+# Join the reported clinical cases data to the state boundary map data.
+# rcc data has state abbreviations, not names
+# need to add state name column
+# do this by making a new data frame
+state_key <- tibble(jurisdiction = state.abb, region = state.name)
+all_reported_cases <- inner_join(all_reported_cases, 
+                                 state_key, 
+                                 by = "jurisdiction") %>% 
+  mutate(region = factor(region))
+
+# Join the reported clinical cases data to the state boundary map data.
+statewide_cases <- inner_join(states, all_reported_cases, by = "region")
+`%!in%` <- Negate(`%in%`)
+
+# subset statewide reported cases by year
+for (i in 1:6) {
+  assign(paste("statewide_cases", rcc_years[i], sep = "_"), 
+         statewide_cases %>% 
+           filter(year == rcc_years[i]))
+}
+
+statewide_cases_list <- list(statewide_cases_2016,
+                             statewide_cases_2017,
+                             statewide_cases_2018,
+                             statewide_cases_2019,
+                             statewide_cases_2020,
+                             statewide_cases_2021)
+
+# extract states with no cases for each year
+for (i in 1:6) {
+  assign(paste("no_cases", rcc_years[i], sep = "_"), 
+         state_key %>% 
+           filter(region %!in% statewide_cases_list[[i]]$region) %>%  
+           select(region) %>% 
+           mutate(year = rcc_years[i]))
+}
+
+no_cases <- bind_rows(no_cases_2016,
+                      no_cases_2017,
+                      no_cases_2018,
+                      no_cases_2019,
+                      no_cases_2020,
+                      no_cases_2021)
+
+# join no cases data to state map data
+no_cases <- inner_join(states, no_cases, by = "region")
+
+# Create the map
+fig <- ggplot() +
+  geom_polygon(data = no_cases, 
+               aes(x = long, y = lat, group = group), fill = "gray") +
+  geom_polygon(data = statewide_cases, 
+               aes(x = long, y = lat, group = group, fill = clinical_cases)) +
+  labs(fill = "Count") +
+  scale_fill_viridis_c(option = "mako", direction = -1) +
+  theme_void()
+  
+
+library(ggmap)
+library(gganimate)
+library(gifski)
+library(transformr)
+fig_animated <- fig +
+  transition_time(year) +
+  ggtitle('States with Clinical Cases of Candida auris in {frame_time}')
+
+animate(fig_animated, nframes = 6, fps = 0.5)
+anim_save("us_clinical_cases_map.gif")
