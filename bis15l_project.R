@@ -1,4 +1,6 @@
 library(tidyverse)
+library(janitor)
+library(lubridate)
 
 ## Load the reported clinical cases (rcc) data sets:
 # Obtain file names.
@@ -95,3 +97,32 @@ all_reported_cases <- rcc %>%
   select(!any_cases) 
 
 write_csv(all_reported_cases, "all_reported_cases.csv")
+
+all_rcc <- read_csv("Data/all_reported_cases.csv")
+
+
+## Load the ncbi isolates data and select variables of interest:
+ncbi <- read_csv("Data/ncbi_isolates.csv") %>% 
+  clean_names() %>% 
+  select(isolate, create_date, location, isolation_source, isolation_type, snp_cluster)
+
+# Select all rows associated w/ US clinical cases
+ncbi_clinical_isolates <- ncbi %>%
+  filter(str_detect(location, "USA"),
+         isolation_type == "clinical",) %>% 
+  drop_na()
+
+# Remove "USA: " from location column to get states
+ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
+  mutate(location = str_replace(location, "USA: ", "")) %>% 
+  rename(state = location) %>% 
+  mutate(state = factor(state))
+  
+# Change isolation sources to blood and other
+ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
+  mutate(isolation_source = case_when(str_detect(isolation_source, "blood") ~ "blood",
+                                      TRUE ~ "other"))
+
+# Change column types
+ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
+  mutate(across(where(is.character), factor))
