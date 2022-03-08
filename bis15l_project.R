@@ -112,11 +112,16 @@ ncbi_clinical_isolates <- ncbi %>%
          isolation_type == "clinical",) %>% 
   drop_na()
 
-# Remove "USA: " from location column to get states
+# Remove "USA: " and "USA:" from location column to get states
 ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
   mutate(location = str_replace(location, "USA: ", "")) %>% 
+  mutate(location = str_replace(location, "USA:", "")) %>% 
+  mutate(location = str_replace(location, "Houston", "Texas")) %>% 
+  mutate(location = str_replace(location, "Chicago", "Illinois")) %>% 
+  mutate(location = str_replace(location, "New jersey", "New Jersey")) %>% 
+  filter(location != "USA") %>% 
   rename(state = location) %>% 
-  mutate(state = factor(state))
+  mutate(state = factor(state)) 
   
 # Change isolation sources to blood and other
 ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
@@ -207,3 +212,48 @@ fig_animated <- fig +
 
 animate(fig_animated, nframes = 6, fps = 0.5)
 anim_save("us_clinical_cases_map.gif")
+
+
+## Visualize the ncbi isolates data
+# Proportion of blood isolates.
+isolation_sources <- ncbi_clinical_isolates %>% 
+  group_by(snp_cluster) %>% 
+  count(isolation_source)
+
+top_blood_clusters <- ncbi_clinical_isolates %>% 
+  group_by(snp_cluster) %>% 
+  tabyl(snp_cluster,isolation_source) %>% 
+  arrange(desc(blood))
+
+ggplot(data = isolation_sources) +
+  geom_col(aes(x = fct_reorder(snp_cluster, n),
+               y = n,
+               fill = isolation_source)) +
+  labs(x = "SNP Cluster",
+       y = "Count",
+       fill = "Isolation Source") +
+  coord_flip() +
+  scale_fill_manual(values = c(wes_palettes$Royal1[2], 
+                               wes_palettes$Royal1[3])) +
+  theme_minimal()
+
+# Find states with snp_clusters with the highest prop of bloodstream infections.
+blood_clusters <- ncbi_clinical_isolates %>% 
+  filter(snp_cluster %in% as.vector(head(top_blood_clusters$snp_cluster, 3)),
+         isolation_source == "blood")
+
+blood_clusters %>% 
+ group_by(state) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
+
+# could look at covid cases in these states at the time of isolate?
+
+# Time series plots 
+dates <- ncbi_clinical_isolates %>% 
+  mutate(create_date = as_date(create_date)) %>%
+  count(create_date) %>% 
+  arrange(create_date)
+
+ggplot(data = dates) +
+  geom_line(aes(x = create_date, y = n))

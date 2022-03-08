@@ -131,11 +131,16 @@ ncbi_clinical_isolates <- ncbi %>%
          isolation_type == "clinical",) %>% 
   drop_na()
 
-# Remove "USA: " from values in the location column to get a state column.
+# Remove "USA: " and "USA:" from values in the location column to get a state column.
 ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
   mutate(location = str_replace(location, "USA: ", "")) %>% 
+  mutate(location = str_replace(location, "USA:", "")) %>% 
+  mutate(location = str_replace(location, "Houston", "Texas")) %>% 
+  mutate(location = str_replace(location, "Chicago", "Illinois")) %>% 
+  mutate(location = str_replace(location, "New jersey", "New Jersey")) %>% 
+  filter(location != "USA") %>% 
   rename(state = location) %>% 
-  mutate(state = factor(state))
+  mutate(state = factor(state)) 
   
 # Change the values in the isolation source column to one of two categories: 
 # blood and other.
@@ -148,7 +153,7 @@ ncbi_clinical_isolates <- ncbi_clinical_isolates %>%
 ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
   mutate(across(where(is.character), factor))
 
-# write_csv(ncbi_clinical_isolates, "ncbi_clinical_isolates.csv")
+#write_csv(ncbi_clinical_isolates, "ncbi_clinical_isolates.csv")
 ```
 
 
