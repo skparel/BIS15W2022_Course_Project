@@ -307,4 +307,75 @@ microreact_coords <- bind_rows(microreact_coords_distinct,
                                microreact_coords_dup) %>% 
   arrange(year)
 
-  
+## Google Trends
+# Related Queries:
+related <- read_csv("Data/google_search_trends/searchterm_candidaauris/relatedQueries.csv", 
+                    skip = 3,
+                    col_names = TRUE)
+
+# Separate top queries from rising queries
+top_related <- related %>% 
+  head(25)
+
+rising_related <- related %>% 
+  tail(26) %>%
+  rename(query = TOP) %>% 
+  slice(-1) %>% 
+  mutate(query = str_remove(query, ",Breakout"))
+
+# Obtain counts for words in top queries:
+# Separate counts from queries.
+top_counts <- top_related %>% 
+  separate(TOP, c("query", "count"), ",") %>% 
+  head(-2) # remove candida and auris
+
+# Get counts for each word.
+# Create a corpus
+top_corpus <- Corpus(VectorSource(top_counts$query)) %>% 
+  tm_map(removeWords, c("is", "of", "candida", "auris"))
+
+# create a document term matrix from the corpus
+top_dtm <- TermDocumentMatrix(top_corpus) %>% 
+  as.matrix()
+
+# get word frequencies from dtm
+top_words <- rowSums(top_dtm) 
+top_totals <- tibble(word = names(top_words), freq = top_words) 
+# freq > 1 = duplicate
+# multiply freq by count for each word
+
+# combine with query counts to get totals for each word
+top_totals <- top_totals %>% 
+  mutate(count = c((100+14), 27, (25+8), 20, 19, 17, 17, 16, 14, (12+10), 10, 9, 8, 8)) %>% 
+  mutate(n = freq*count)
+
+# Create the word cloud.
+library(ggwordcloud)
+set.seed(1)
+ggplot(data = top_totals) +
+  geom_text_wordcloud(aes(label = word , size = n, color = word)) +
+  scale_size_area(max_size = 28) +
+  scale_color_manual(values = paletteer_c("grDevices::Teal", 14)) +
+  theme_minimal()
+
+# Obtain counts for words in rising queries:
+# Create a corpus
+rising_corpus <- Corpus(VectorSource(rising_related$query)) %>% 
+  tm_map(removeWords, c("is", "of", "candida", "auris"))
+
+# create a document term matrix from the corpus
+rising_dtm <- TermDocumentMatrix(rising_corpus) %>% 
+  as.matrix()
+
+# get word frequencies from dtm
+rising_words <- rowSums(rising_dtm) 
+rising_totals <- tibble(word = names(rising_words), freq = rising_words) 
+# freq > 1 = duplicate
+# multiply freq by count for each word
+
+# create the word cloud
+ggplot(data = rising_totals) +
+  geom_text_wordcloud(aes(label = word, size = freq, color = word)) +
+  scale_size_area(max_size = 18) +
+  scale_color_manual(values = paletteer_c("grDevices::Teal", 17)) +
+  theme_minimal()

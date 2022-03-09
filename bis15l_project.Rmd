@@ -15,6 +15,8 @@ library(gganimate)
 library(gifski)
 library(transformr)
 library(ggsci)
+library(ggwordcloud)
+library(tm)
 ```
 
 ## Load the U.S. clinical cases data sets.
@@ -265,7 +267,7 @@ ggplot(data = isolation_sources) +
        y = "Count",
        fill = "Isolation Source") +
   coord_flip() +
-  scale_fill_uchicago() +
+  scale_fill_viridis_d(direction = -1) +
   theme_minimal()
 
 # SNP clusters associated with highest proportion of blood isolates are 
@@ -283,5 +285,82 @@ blood_clusters %>%
   summarize(n = n()) %>% 
   arrange(desc(n))
 
+```
+
+## Visualize the Google Trends data.
+```{r, message = FALSE}
+## Create word clouds for the related queries:
+# Load the related queries data.
+related <- read_csv("Data/google_search_trends/searchterm_candidaauris/relatedQueries.csv", 
+                    skip = 3,
+                    col_names = TRUE)
+
+# Separate top queries from rising queries.
+top_related <- related %>% 
+  head(25)
+
+rising_related <- related %>% 
+  tail(26) %>%
+  rename(query = TOP) %>% 
+  slice(-1) %>% 
+  mutate(query = str_remove(query, ",Breakout"))
+
+## Obtain counts for words in top queries:
+# Create Separate columns for counts and queries.
+top_counts <- top_related %>% 
+  separate(TOP, c("query", "count"), ",") %>% 
+  head(-2) # remove candida and auris
+
+# Use text mining to get total counts for each word.
+# Create and preprocess a corpus for top queries.
+top_corpus <- Corpus(VectorSource(top_counts$query)) %>% 
+  tm_map(removeWords, c("is", "of", "candida", "auris"))
+
+# Create a document term matrix from the corpus.
+# Each document (query) is represented by a set of tokens (words) and their counts.
+top_dtm <- TermDocumentMatrix(top_corpus) %>% 
+  as.matrix()
+
+# Get word frequencies from the dtm.
+top_words <- rowSums(top_dtm) 
+top_totals <- tibble(word = names(top_words), freq = top_words) 
+# freq > 1 = duplicate words
+# multiply freq by count for each word
+
+# Combine word frequencies with query counts to get totals for each word.
+top_totals <- top_totals %>% 
+  mutate(count = c((100+14), 27, (25+8), 20, 19, 17, 17, 16, 14, (12+10), 10, 9, 8, 8)) %>% 
+  mutate(n = freq*count)
+
+## Create the word cloud.
+set.seed(1)
+ggplot(data = top_totals) +
+  geom_text_wordcloud(aes(label = word , size = n, color = word)) +
+  scale_size_area(max_size = 28) +
+  scale_color_manual(values = paletteer_c("grDevices::Teal", 14)) +
+  theme_minimal()
+```
+
+```{r, message = FALSE}
+## Obtain counts for words in rising queries:
+# No count column, so word frequencies are the totals.
+# Create and preprocess a corpus for rising queries.
+rising_corpus <- Corpus(VectorSource(rising_related$query)) %>% 
+  tm_map(removeWords, c("is", "of", "candida", "auris"))
+
+# create a document term matrix from the corpus.
+rising_dtm <- TermDocumentMatrix(rising_corpus) %>% 
+  as.matrix()
+
+# Get word frequencies from the dtm.
+rising_words <- rowSums(rising_dtm) 
+rising_totals <- tibble(word = names(rising_words), freq = rising_words) 
+
+## create the word cloud
+ggplot(data = rising_totals) +
+  geom_text_wordcloud(aes(label = word, size = freq, color = word)) +
+  scale_size_area(max_size = 18) +
+  scale_color_manual(values = paletteer_c("grDevices::Teal", 17)) +
+  theme_minimal()
 ```
 
