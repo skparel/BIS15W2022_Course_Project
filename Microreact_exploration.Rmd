@@ -212,14 +212,15 @@ microreact_drug_resistance %>%
        y="AMR Gene",
        caption="Blank: n=0.
        Drugs:AMB= Amphotericin B, FCZ= Fluconazole, MCF= Micafungin, MDR= Multi-Drug Resistance, XDR= Extreme Drug Resistance (all 3),NR= No Drug Resistance.
-       Data from Tracing the Evolutionary History and Global Expansion of Candida auris Using Population Genomic Analyses' by Chow et al 2020 ")+
-  theme(plot.caption= element_text(hjust=0))
+       Data from Tracing the Evolutionary History and Global Expansion of Candida auris Using Population Genomic Analyses' by Chow et al 2020 ")
   
   
 ```
 
+
+
 ```{r}
-microreact_drug_resistance %>% count(drug_resistance, amr_gene)
+microreact_drug_resistance %>% count(drug_resistance, amr_gene) %>% knitr::kable()
 ```
 -  From this heat map and table we can see that the ERG11 gene has a lot of overlap with drug resistance- both SDR and MDR
 -  We can also see that cases with no AMR genes also have more cases without drug resistance
@@ -233,4 +234,28 @@ microreact_drug_resistance %>%
 
 
 ## Map Making!
+
+Focus on US
+2004-2016 to give baseline for before CDC started tracking
+Facet maps from 2012-2016
+
+```{r}
+us_locations <- microreact %>% 
+  filter(country=="United States" & year<= "2016") %>% 
+  select(latitude, longitude, year) %>% 
+  print()
+```
+
+```{r}
+library(albersusa)
+```
+
+
+```{r}
+us_comp <- usa_sf()
+ggplot() + 
+  geom_sf(data = us_comp) + 
+  theme_linedraw()+
+  labs(title = "USA State Boundaries")
+```
 
