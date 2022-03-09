@@ -218,7 +218,6 @@ microreact_drug_resistance %>%
 ```
 
 
-
 ```{r}
 microreact_drug_resistance %>% count(drug_resistance, amr_gene) %>% knitr::kable()
 ```
@@ -232,6 +231,71 @@ microreact_drug_resistance %>%
   scale_fill_viridis_b()
 ```
 
+## AMR Resistance over time
+
+```{r}
+microreact_drug_resistance %>% 
+  filter(drug_resistance!="NA", drug_resistance!= "AMB") %>% 
+ count(year, drug_resistance) %>% 
+ggplot(aes(x=year, y=n, color=drug_resistance))+
+  geom_line(size=1.25)+
+  theme_classic()+
+  scale_color_viridis_d()+
+  labs(title="Antifungal Drug Resistant Strain Counts by Year",
+       x="Year",
+       y="Count (Global)")
+
+```
+I want to look at this again, but instead as a percent of total cases...
+Need to mutate a total case column to add to year
+
+Also I exclude AMB because of the low case count and effect on the visuals
+
+finding total cases per year:
+```{r}
+micro_case_totals <- microreact_drug_resistance %>% 
+  group_by(year) %>% 
+  summarize(total_cases=n_distinct(id)) %>% 
+  print()
+```
+```{r}
+micro_drug_totals <- microreact_drug_resistance %>% 
+  group_by(year, drug_resistance) %>% 
+  summarize(total_drug=n_distinct(id)) %>% 
+  print()
+```
+
+Ok I'm going to try to join these tables so there is a total case column for each year
+
+```{r}
+join_drug_totals <- full_join(micro_drug_totals, micro_case_totals, by="year")
+```
+
+WOWOWOWOWOWOW that worked!!
+
+I need to mutate a new column now to show the percentage of drug resistant cases 
+```{r}
+percent_drug_resistant <- join_drug_totals %>% 
+  mutate(percent_of_total_cases=(total_drug/total_cases)*100)
+```
+
+Now a line graph of the percents!!
+
+```{r}
+percent_drug_resistant %>% 
+filter(drug_resistance!="NA", drug_resistance!= "AMB") %>% 
+ggplot(aes(x=year, y=percent_of_total_cases, color=drug_resistance))+
+  geom_line(size=1.25)+
+  theme_classic()+
+  scale_color_viridis_d()+
+  labs(title="Antifungal Drug Resistant Strain Percentage of Total Cases by Year",
+       x="Year",
+       y="Percent of Total Cases")+
+  facet_wrap(~drug_resistance, ncol=2)
+
+
+```
+
 
 ## Map Making!
 
@@ -240,9 +304,24 @@ Focus on US
 Facet maps from 2012-2016
 
 ```{r}
-us_locations <- microreact %>% 
-  filter(country=="United States" & year<= "2016") %>% 
+microreact_coords_distinct <- microreact %>% 
+  filter(year <=2016, country == "United States") %>% 
   select(latitude, longitude, year) %>% 
+  arrange(year) %>% 
+  distinct() %>% 
+  mutate(count = 1)
+
+microreact_coords_dup <- microreact %>% 
+  filter(year <=2016, country == "United States") %>% 
+  select(latitude, longitude, year) %>% 
+  arrange(year) %>%
+  get_dupes %>% 
+  distinct() %>% 
+  mutate(count=dupe_count)
+
+microreact_coords <- bind_rows(microreact_coords_distinct, 
+                                                              microreact_coords_dup) %>% 
+  arrange(year) %>% 
   print()
 ```
 
@@ -255,7 +334,9 @@ library(albersusa)
 us_comp <- usa_sf()
 ggplot() + 
   geom_sf(data = us_comp) + 
+  geom_point(data=microreact_coords, aes(longitude, latitude, size=count), color="blue")+
   theme_linedraw()+
-  labs(title = "USA State Boundaries")
+  facet_wrap(~year, ncol = 2)+
+  labs(title = "US Cases 2012-2016")
 ```
 
