@@ -14,6 +14,7 @@ library(ggmap)
 library(gganimate)
 library(gifski)
 library(transformr)
+library(ggsci)
 ```
 
 ## Load the U.S. clinical cases data sets.
@@ -236,9 +237,51 @@ fig <- ggplot() +
 # Animate the map and save as a gif.
 fig_animated <- fig +
   transition_time(year) +
-  ggtitle('States with Clinical Cases of Candida auris in {frame_time}')
+  ggtitle('Clinical Cases of Candida auris in {frame_time}') +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(size = 16, face = "bold"))
 
 animate(fig_animated, nframes = 6, fps = 0.5)
 #anim_save("us_clinical_cases_map.gif")
+```
+## Visualize the NCBI isolate data.
+```{r}
+## Calculate the proportion of isolates from blood for each SNP cluster as an
+# indicator of bloodstream infection.
+isolation_sources <- ncbi_clinical_isolates %>% 
+  group_by(snp_cluster) %>% 
+  count(isolation_source)
+
+cluster_sources <- ncbi_clinical_isolates %>% 
+  group_by(snp_cluster) %>% 
+  tabyl(snp_cluster,isolation_source) %>% 
+  arrange(desc(blood))
+
+ggplot(data = isolation_sources) +
+  geom_col(aes(x = fct_reorder(snp_cluster, n),
+               y = n,
+               fill = isolation_source)) +
+  labs(x = "SNP Cluster",
+       y = "Count",
+       fill = "Isolation Source") +
+  coord_flip() +
+  scale_fill_uchicago() +
+  theme_minimal()
+
+# SNP clusters associated with highest proportion of blood isolates are 
+# PDS000050611.11, PDS000050610.18, and PDS000050696.2
+```
+
+```{r}
+# Find states with snp_clusters with the highest prop of bloodstream infections.
+blood_clusters <- ncbi_clinical_isolates %>% 
+  filter(isolation_source == "blood",
+         snp_cluster %in% as.vector(head(cluster_sources$snp_cluster, 3)))
+
+blood_clusters %>% 
+ group_by(state) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
+
 ```
 
