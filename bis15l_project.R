@@ -213,6 +213,37 @@ fig_animated <- fig +
 animate(fig_animated, nframes = 6, fps = 0.5)
 anim_save("us_clinical_cases_map.gif")
 
+# 2021 counts
+center_coords <- state.vbm.center %>% 
+  as.data.frame() %>% 
+  tibble(long = x, lat = y) %>% 
+  mutate(region = unique(states$region))
+
+counts_2021 <- statewide_cases_2021 %>% 
+  group_by(region) %>% 
+  count(clinical_cases) %>% 
+  select(-n) %>% 
+  left_join(center_coords, by = "region")
+
+ggplot() +
+  geom_polygon(data = no_cases %>% 
+                 filter(year == 2021), 
+               aes(x = long, y = lat, group = group), fill = "gray") +
+  geom_polygon(data = statewide_cases_2021, 
+               aes(x = long, y = lat, group = group, fill = clinical_cases)) +
+  geom_text(data = counts_2021,
+            aes(x = long, y = lat, label = clinical_cases),
+            fontface = 2,
+            color = "grey70") +
+  #geom_label(data = counts_2021,
+  #          aes(x = long, y = lat, label = clinical_cases),
+  #          fontface = "bold") +
+  labs(fill = "Count") +
+  scale_fill_viridis_c(option = "mako", direction = -1) +
+  theme_void() 
+
+# No cases in Oregon but high freq of searches from google trends data
+# reflects voluntary reporting
 
 ## Visualize the ncbi isolates data
 # Proportion of blood isolates.
@@ -233,8 +264,7 @@ ggplot(data = isolation_sources) +
        y = "Count",
        fill = "Isolation Source") +
   coord_flip() +
-  scale_fill_manual(values = c(wes_palettes$Royal1[2], 
-                               wes_palettes$Royal1[3])) +
+  scale_fill_uchicago() +
   theme_minimal()
 
 # Find states with snp_clusters with the highest prop of bloodstream infections.
@@ -247,7 +277,6 @@ blood_clusters %>%
   summarize(n = n()) %>% 
   arrange(desc(n))
 
-# could look at covid cases in these states at the time of isolate?
 
 # Time series plots 
 dates <- ncbi_clinical_isolates %>% 
@@ -257,3 +286,25 @@ dates <- ncbi_clinical_isolates %>%
 
 ggplot(data = dates) +
   geom_line(aes(x = create_date, y = n))
+  
+
+# Microreact map
+microreact_coords_distinct <- microreact %>% 
+  filter(year <=2016, COUNTRY == "United States") %>% 
+  select(Latitude, Longitude, year) %>% 
+  arrange(year) %>% 
+  distinct() %>% 
+  mutate(dupe_count = 1)
+
+microreact_coords_dup <- microreact %>% 
+  filter(year <=2016, COUNTRY == "United States") %>% 
+  select(Latitude, Longitude, year) %>% 
+  arrange(year) %>%
+  get_dupes %>% 
+  distinct()
+
+microreact_coords <- bind_rows(microreact_coords_distinct, 
+                               microreact_coords_dup) %>% 
+  arrange(year)
+
+  
