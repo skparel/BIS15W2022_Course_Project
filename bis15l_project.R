@@ -199,7 +199,9 @@ fig <- ggplot() +
                aes(x = long, y = lat, group = group, fill = clinical_cases)) +
   labs(fill = "Count") +
   scale_fill_viridis_c(option = "mako", direction = -1) +
-  theme_void()
+  theme_void() +
+  theme(legend.box.margin = margin(10,10,10,10),
+        plot.title = element_text(face = "bold", hjust = 0.5, size = 18))
   
 
 library(ggmap)
@@ -208,9 +210,9 @@ library(gifski)
 library(transformr)
 fig_animated <- fig +
   transition_time(year) +
-  ggtitle('States with Clinical Cases of Candida auris in {frame_time}')
+  ggtitle('Clinical Cases of Candida auris in {frame_time}')
 
-animate(fig_animated, nframes = 6, fps = 0.5)
+animate(fig_animated, nframes = 6, fps = 0.5, height = 450, width = 700)
 anim_save("us_clinical_cases_map.gif")
 
 # 2021 counts
@@ -219,31 +221,33 @@ center_coords <- state.vbm.center %>%
   tibble(long = x, lat = y) %>% 
   mutate(region = unique(states$region))
 
-counts_2021 <- statewide_cases_2021 %>% 
+coords_2021 <- statewide_cases_2021 %>% 
   group_by(region) %>% 
   count(clinical_cases) %>% 
   select(-n) %>% 
-  left_join(center_coords, by = "region")
+  left_join(center_coords, by = "region") %>% 
+  left_join(state_key, by = "region")
 
+# 2021
 ggplot() +
   geom_polygon(data = no_cases %>% 
                  filter(year == 2021), 
                aes(x = long, y = lat, group = group), fill = "gray") +
   geom_polygon(data = statewide_cases_2021, 
                aes(x = long, y = lat, group = group, fill = clinical_cases)) +
-  geom_text(data = counts_2021,
-            aes(x = long, y = lat, label = clinical_cases),
-            fontface = 2,
-            color = "grey70") +
-  #geom_label(data = counts_2021,
+  #geom_text(data = counts_2021,
   #          aes(x = long, y = lat, label = clinical_cases),
-  #          fontface = "bold") +
+  #          fontface = 2,
+  #          color = "grey70") +
+  geom_label(data = coords_2021,
+            aes(x = long, y = lat, label = clinical_cases),
+            fontface = "bold") +
   labs(fill = "Count") +
   scale_fill_viridis_c(option = "mako", direction = -1) +
   theme_void() 
 
 # No cases in Oregon but high freq of searches from google trends data
-# reflects voluntary reporting
+# voluntary reporting?
 
 ## Visualize the ncbi isolates data
 # Proportion of blood isolates.
@@ -278,7 +282,7 @@ blood_clusters %>%
   arrange(desc(n))
 
 
-# Time series plots 
+## Time series plots 
 dates <- ncbi_clinical_isolates %>% 
   mutate(create_date = as_date(create_date)) %>%
   count(create_date) %>% 
@@ -288,7 +292,7 @@ ggplot(data = dates) +
   geom_line(aes(x = create_date, y = n))
   
 
-# Microreact map
+## Microreact map
 microreact_coords_distinct <- microreact %>% 
   filter(year <=2016, COUNTRY == "United States") %>% 
   select(Latitude, Longitude, year) %>% 
@@ -379,3 +383,30 @@ ggplot(data = rising_totals) +
   scale_size_area(max_size = 18) +
   scale_color_manual(values = paletteer_c("grDevices::Teal", 17)) +
   theme_minimal()
+
+## Google trends map
+# 2021
+searches_2021 <- read_csv("Data/google_search_trends/searchterm_candidaauris/geoMap_2021.csv",
+                          skip = 2,
+                          col_names = TRUE) %>% 
+  rename(region = Region,
+         count = `Candida auris: (3/9/21 - 3/9/22)`)
+
+searches_2021 <- inner_join(searches_2021, states, by = "region") %>% 
+  inner_join(state_key, by = "region")
+searches_2021_coords <- inner_join(searches_2021 %>% 
+                                            select(region, jurisdiction, count), 
+                                          center_coords,
+                                          by = "region")
+
+states_of_interest <- c("CA", "IL", "NY", "FL", "OR")
+ggplot(data = searches_2021) +
+  geom_polygon(data = searches_2021, 
+               aes(x = long, y = lat, group = group, fill = count)) +
+  scale_fill_viridis_c(option = "mako", direction = -1, na.value = "gray") +
+  geom_label(data = searches_2021_coords %>% 
+               filter(jurisdiction %in% states_of_interest),
+             aes(x = long, y = lat, label = count),
+             fontface = "bold") +
+  labs(fill = "Queries") +
+  theme_void()

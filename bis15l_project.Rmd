@@ -15,6 +15,7 @@ library(gganimate)
 library(gifski)
 library(transformr)
 library(ggsci)
+library(paletteer)
 library(ggwordcloud)
 library(tm)
 ```
@@ -240,10 +241,11 @@ fig <- ggplot() +
 fig_animated <- fig +
   transition_time(year) +
   ggtitle('Clinical Cases of Candida auris in {frame_time}') +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.title = element_text(size = 16, face = "bold"))
+  theme(plot.title = element_text(hjust = 0.5, size = 18, face = "bold",
+                                  margin = margin(t = 15, b = -15)),
+        legend.box.margin = margin(10,10,10,10))
 
-animate(fig_animated, nframes = 6, fps = 0.5)
+animate(fig_animated, nframes = 6, fps = 0.5, height = 450, width = 600)
 #anim_save("us_clinical_cases_map.gif")
 ```
 ## Visualize the NCBI isolate data.
@@ -362,5 +364,111 @@ ggplot(data = rising_totals) +
   scale_size_area(max_size = 18) +
   scale_color_manual(values = paletteer_c("grDevices::Teal", 17)) +
   theme_minimal()
+```
+
+## Compare number of reported clinical cases and Google searches in 2021.
+```{r}
+## Create the 2021 reported clinical cases map:
+# Extract center coordinates for each state from the state boundary map data:
+center_coords <- state.vbm.center %>% 
+  as.data.frame() %>% 
+  tibble() %>% 
+  rename(long = x,
+         lat = y) %>% 
+  mutate(region = unique(states$region)) %>% 
+  relocate(region)
+
+# Join 2021 statewide case counts with center coordinates to use as state labels:
+# Select region and case count columns from the 2021 data frame.
+# Join columns with the center coordinates.
+# Join with state abbreviations for faster filtering.
+coords_2021 <- statewide_cases_2021 %>% 
+  group_by(region) %>% 
+  count(clinical_cases) %>% 
+  select(-n) %>% 
+  left_join(center_coords, by = "region") %>% 
+  left_join(state_key, by = "region") %>% 
+  rename(abb = jurisdiction)
+
+# Crete the 2021 reported cases map:
+ggplot() +
+  geom_polygon(data = no_cases %>% 
+                 filter(year == 2021), 
+               aes(x = long, y = lat, group = group), fill = "gray") +
+  geom_polygon(data = statewide_cases_2021, 
+               aes(x = long, y = lat, group = group, fill = clinical_cases)) +
+  #geom_text(data = counts_2021,
+  #          aes(x = long, y = lat, label = clinical_cases),
+  #          fontface = 2,
+  #          color = "grey70") +
+  geom_label(data = coords_2021,
+            aes(x = long, y = lat, label = clinical_cases),
+            fontface = "bold") +
+  labs(fill = "Count") +
+  scale_fill_viridis_c(option = "mako", direction = -1) +
+  theme_void() 
+
+# No cases in Oregon but high freq of searches from google trends data
+# voluntary reporting?
+```
+
+```{r, message = FALSE}
+## Create the 2021 Google searches map.
+# Load the Google searches data.
+searches_2021 <- read_csv("Data/google_search_trends/searchterm_candidaauris/geoMap_2021.csv",
+                          skip = 2,
+                          col_names = TRUE) %>% 
+  rename(region = Region,
+         count = `Candida auris: (3/9/21 - 3/9/22)`)
+
+# Add the abbreviation column for faster filtering.
+searches_2021 <- inner_join(searches_2021, states, by = "region") %>% 
+  inner_join(state_key, by = "region") %>% 
+  rename(abb = jurisdiction) %>% 
+  relocate(abb, .before = count)
+
+# Relate the center coordinates to the number of searches in each state.
+searches_2021_coords <- inner_join(searches_2021 %>% 
+                                     select(region, abb, count),
+                                   center_coords,
+                                   by = "region")
+
+# Create a vector containing the abbreviations of states of interest.
+# Includes states with high number of reported cases or google searches.
+states_of_interest <- c("CA", "IL", "NY", "FL", "OR")
+soi_2021_coords <- searches_2021_coords %>% 
+  filter(abb %in% states_of_interest)
+
+ggplot(data = searches_2021) +
+  geom_polygon(aes(x = long, y = lat, group = group, fill = count)) +
+  geom_label(data = soi_2021_coords,
+             aes(x = long, y = lat, label = count),
+             fontface = "bold") +
+  scale_fill_viridis_c(option = "mako", direction = -1, na.value = "gray") +
+  labs(fill = "Count") +
+  theme_void()
+
+```
+
+```{r}
+# Make a copy of the 2021 reported cases map with only the states of interest
+# labeled.
+ggplot() +
+  geom_polygon(data = no_cases %>% 
+                 filter(year == 2021), 
+               aes(x = long, y = lat, group = group), fill = "gray") +
+  geom_polygon(data = statewide_cases_2021, 
+               aes(x = long, y = lat, group = group, fill = clinical_cases)) +
+  #geom_text(data = counts_2021,
+  #          aes(x = long, y = lat, label = clinical_cases),
+  #          fontface = 2,
+  #          color = "grey70") +
+  geom_label(data = coords_2021 %>% 
+               filter(abb %in% states_of_interest),
+            aes(x = long, y = lat, label = clinical_cases),
+            fontface = "bold") +
+  labs(fill = "Count") +
+  scale_fill_viridis_c(option = "mako", direction = -1) +
+  theme_void() 
 ```
 
