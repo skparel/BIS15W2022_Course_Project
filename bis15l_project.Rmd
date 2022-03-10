@@ -9,13 +9,16 @@ knitr::opts_chunk$set(echo=FALSE)
 library(tidyverse)
 library(janitor)
 library(lubridate)
+
 library(maps)
 library(ggmap)
 library(gganimate)
 library(gifski)
 library(transformr)
+
 library(ggsci)
 library(paletteer)
+
 library(ggwordcloud)
 library(tm)
 ```
@@ -40,6 +43,7 @@ rcc_names <- list.files(path = "Data/us_clinical_cases",
                         pattern = ".csv") %>% 
   strsplit(".csv") %>% 
   unlist()
+
 names(rcc) <- rcc_names
 
 # Check if the number of columns is the same in each data set.
@@ -113,8 +117,8 @@ all_reported_cases <- rcc %>%
   relocate(year) %>% 
   arrange(year) %>% 
   filter(!is.na(jurisdiction),
-         !clinical_cases == 0) %>% 
-  select(!any_cases) 
+         clinical_cases != 0) %>% 
+  select(-any_cases) 
 
 # write_csv(all_reported_cases, "all_reported_cases.csv")
 ```
@@ -135,7 +139,8 @@ ncbi_clinical_isolates <- ncbi %>%
          isolation_type == "clinical",) %>% 
   drop_na()
 
-# Remove "USA: " and "USA:" from values in the location column to get a state column.
+# Remove "USA: " and "USA:" from values in the location column 
+# and rename as state.
 ncbi_clinical_isolates <- ncbi_clinical_isolates %>% 
   mutate(location = str_replace(location, "USA: ", "")) %>% 
   mutate(location = str_replace(location, "USA:", "")) %>% 
@@ -293,7 +298,8 @@ blood_clusters %>%
 ```{r, message = FALSE}
 ## Create word clouds for the related queries:
 # Load the related queries data.
-related <- read_csv("Data/google_search_trends/searchterm_candidaauris/relatedQueries.csv", 
+related <- read_csv("Data/google_search_trends/
+                    searchterm_candidaauris/relatedQueries.csv", 
                     skip = 3,
                     col_names = TRUE)
 
@@ -331,7 +337,8 @@ top_totals <- tibble(word = names(top_words), freq = top_words)
 
 # Combine word frequencies with query counts to get totals for each word.
 top_totals <- top_totals %>% 
-  mutate(count = c((100+14), 27, (25+8), 20, 19, 17, 17, 16, 14, (12+10), 10, 9, 8, 8)) %>% 
+  mutate(count = c((100+14), 27, (25+8), 20, 19, 17, 17, 
+                   16, 14, (12+10), 10, 9, 8, 8)) %>% 
   mutate(n = freq*count)
 
 ## Create the word cloud.
@@ -378,7 +385,8 @@ center_coords <- state.vbm.center %>%
   mutate(region = unique(states$region)) %>% 
   relocate(region)
 
-# Join 2021 statewide case counts with center coordinates to use as state labels:
+# Join 2021 statewide case counts with center coordinates
+# to use as state labels:
 # Select region and case count columns from the 2021 data frame.
 # Join columns with the center coordinates.
 # Join with state abbreviations for faster filtering.
@@ -397,16 +405,17 @@ ggplot() +
                aes(x = long, y = lat, group = group), fill = "gray") +
   geom_polygon(data = statewide_cases_2021, 
                aes(x = long, y = lat, group = group, fill = clinical_cases)) +
-  #geom_text(data = counts_2021,
-  #          aes(x = long, y = lat, label = clinical_cases),
-  #          fontface = 2,
-  #          color = "grey70") +
   geom_label(data = coords_2021,
             aes(x = long, y = lat, label = clinical_cases),
             fontface = "bold") +
-  labs(fill = "Count") +
+  labs(fill = "Count",
+       title = "Reported Clinical Cases of Candida auris in 2021") +
+  theme_void() +
   scale_fill_viridis_c(option = "mako", direction = -1) +
-  theme_void() 
+  theme(plot.title = element_text(size = 14,
+                                  margin = margin(t = 15, b = -15)),
+        legend.margin = margin(10, 30, 10, 10))
+  
 
 # No cases in Oregon but high freq of searches from google trends data
 # voluntary reporting?
@@ -415,7 +424,8 @@ ggplot() +
 ```{r, message = FALSE}
 ## Create the 2021 Google searches map.
 # Load the Google searches data.
-searches_2021 <- read_csv("Data/google_search_trends/searchterm_candidaauris/geoMap_2021.csv",
+searches_2021 <- read_csv("Data/google_search_trends/
+                          searchterm_candidaauris/geoMap_2021.csv",
                           skip = 2,
                           col_names = TRUE) %>% 
   rename(region = Region,
@@ -444,10 +454,13 @@ ggplot(data = searches_2021) +
   geom_label(data = soi_2021_coords,
              aes(x = long, y = lat, label = count),
              fontface = "bold") +
+  theme_void() +
   scale_fill_viridis_c(option = "mako", direction = -1, na.value = "gray") +
-  labs(fill = "Count") +
-  theme_void()
-
+  labs(fill = "Count",
+       title = 'Number of Google Searches Containing "Candida auris" in 2021') +
+  theme(plot.title = element_text(size = 14,
+                                  margin = margin(t = 15, b = -15)),
+        legend.margin = margin(10, 30, 10, 10))
 ```
 
 ```{r}
@@ -459,16 +472,17 @@ ggplot() +
                aes(x = long, y = lat, group = group), fill = "gray") +
   geom_polygon(data = statewide_cases_2021, 
                aes(x = long, y = lat, group = group, fill = clinical_cases)) +
-  #geom_text(data = counts_2021,
-  #          aes(x = long, y = lat, label = clinical_cases),
-  #          fontface = 2,
-  #          color = "grey70") +
   geom_label(data = coords_2021 %>% 
                filter(abb %in% states_of_interest),
             aes(x = long, y = lat, label = clinical_cases),
             fontface = "bold") +
-  labs(fill = "Count") +
+  theme_void() +
+  labs(fill = "Count",
+       title = "Reported Clinical Cases of Candida auris in 2021") +
   scale_fill_viridis_c(option = "mako", direction = -1) +
-  theme_void() 
+  theme(plot.title = element_text(size = 14,
+                                  margin = margin(t = 15, b = -15)),
+        legend.margin = margin(10, 30, 10, 10))
+   
 ```
 
