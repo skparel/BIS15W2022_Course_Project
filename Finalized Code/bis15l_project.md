@@ -6,37 +6,29 @@ output:
   html_document: 
     keep_md: yes
 ---
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo=TRUE)
-library(tidyverse)
-library(janitor)
-library(lubridate)
 
-library(maps)
-library(ggmap)
-library(gganimate)
-library(gifski)
-library(transformr)
-
-library(ggsci)
-library(paletteer)
-
-library(ggwordcloud)
-library(tm)
-
-library(shiny)
-library(shinydashboard)
-
-library(albersusa)
-library(viridis)
-```
 
 
 ## Load Microreact Global data set
 
 
-```{r}
+
+```r
 microreact<- read_csv("../Data/microreact_isolates.csv")
+```
+
+```
+## Rows: 305 Columns: 20
+## -- Column specification --------------------------------------------------------
+## Delimiter: ","
+## chr (15): ID, CLADE, CLADE__colour, COUNTRY, COUNTRY__colour, FCZ, FCZ__colo...
+## dbl  (5): Latitude, Longitude, year, month, day
+## 
+## i Use `spec()` to retrieve the full column specification for this data.
+## i Specify the column types or set `show_col_types = FALSE` to quiet this message.
+```
+
+```r
 microreact <- janitor::clean_names(microreact)
 #View(microreact)
 ```
@@ -46,7 +38,8 @@ microreact <- janitor::clean_names(microreact)
 The reported clinical cases data sets for the years 2016 - 2021 contain the 
 same variables but do not have the same column names. Therefore, before merging 
 these data sets, we standardized the column names and removed missing values.
-```{r, message = FALSE}
+
+```r
 ## Load the reported clinical cases (rcc) data sets:
 # Obtain file names.
 rcc_files <- list.files(path = "../Data/us_clinical_cases", 
@@ -93,7 +86,8 @@ rcc$reported_cases_2020 <- rcc$reported_cases_2020 %>%
   # across all data sets.
 ```
 
-```{r}
+
+```r
 ## Standardize the column names and variable types:
 # Create a vector containing the new names.
 rcc_col_names <- c("jurisdiction", "any_cases", "clinical_cases", "range")
@@ -128,7 +122,8 @@ rcc <- rcc %>%
   map2(rcc_years, ~mutate(.x, year = .y))
 ```
 
-```{r}
+
+```r
 # Merge the data sets:
 # Drop any rows with non-clinical case counts.
 all_reported_cases <- rcc %>% 
@@ -144,7 +139,8 @@ all_reported_cases <- rcc %>%
 
 
 ## Load the NCBI Isolates Browser data.
-```{r, message = FALSE}
+
+```r
 # Load the NCBI isolates data and select the variables of interest:
 # Load the data.
 ncbi <- read_csv("../Data/ncbi_isolates.csv") %>% 
@@ -186,7 +182,8 @@ ncbi_clinical_isolates <- ncbi_clinical_isolates %>%
 
 
 ## Create an animated map to show the clinical cases in the US since 2016.
-```{r}
+
+```r
 ## Create an animated map for the reported clinical cases:
 # Load the state boundary basemap.
 states <- map_data("state.vbm") %>% 
@@ -270,13 +267,62 @@ fig_animated <- fig +
         legend.box.margin = margin(10,10,10,10))
 
 animate(fig_animated, nframes = 6, fps = 0.5, height = 450, width = 600)
+```
+
+![](bis15l_project_files/figure-html/unnamed-chunk-6-1.gif)<!-- -->
+
+```r
 #anim_save("us_clinical_cases_map.gif")
 ```
 
 ## View Microreact/ Chow et al data
 
-```{r}
+
+```r
 summary(microreact)
+```
+
+```
+##       id               latitude         longitude          clade          
+##  Length:305         Min.   :-28.817   Min.   :-118.76   Length:305        
+##  Class :character   1st Qu.:  4.598   1st Qu.: -74.08   Class :character  
+##  Mode  :character   Median : 10.980   Median : -71.64   Mode  :character  
+##                     Mean   : 19.756   Mean   : -22.90                     
+##                     3rd Qu.: 39.784   3rd Qu.:  38.43                     
+##                     Max.   : 55.367   Max.   : 139.24                     
+##                                                                           
+##  clade_colour         country          country_colour          year     
+##  Length:305         Length:305         Length:305         Min.   :2004  
+##  Class :character   Class :character   Class :character   1st Qu.:2014  
+##  Mode  :character   Mode  :character   Mode  :character   Median :2016  
+##                                                           Mean   :2015  
+##                                                           3rd Qu.:2016  
+##                                                           Max.   :2018  
+##                                                                         
+##      month             day           fcz             fcz_colour       
+##  Min.   : 1.000   Min.   : 1.0   Length:305         Length:305        
+##  1st Qu.: 4.000   1st Qu.:11.0   Class :character   Class :character  
+##  Median : 7.000   Median :15.0   Mode  :character   Mode  :character  
+##  Mean   : 6.914   Mean   :15.7                                        
+##  3rd Qu.: 9.000   3rd Qu.:21.0                                        
+##  Max.   :28.000   Max.   :30.0                                        
+##  NA's   :1                                                            
+##      amb             amb_colour            mcf             mcf_colour       
+##  Length:305         Length:305         Length:305         Length:305        
+##  Class :character   Class :character   Class :character   Class :character  
+##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
+##                                                                             
+##                                                                             
+##                                                                             
+##                                                                             
+##     erg11           erg11_colour           fks1           fks1_colour       
+##  Length:305         Length:305         Length:305         Length:305        
+##  Class :character   Class :character   Class :character   Class :character  
+##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
+##                                                                             
+##                                                                             
+##                                                                             
+## 
 ```
 
 ## Mutate new columns coding for genes and drug resistance
@@ -286,7 +332,8 @@ Mutating Data for showing resistance:
 
 add column:
 
-```{r}
+
+```r
 #Here I am adding a column that codes for type of drug resistance
 
 microreact_drug_resistance <- microreact %>% 
@@ -308,7 +355,8 @@ microreact_drug_resistance <- microreact %>%
 Mutating data for showing ERG11 and FKS1 gene presence:
 
 
-```{r}
+
+```r
 #Here I am adding another column that codes for presence or absence of known drug resistance genes
 
 microreact_drug_resistance <- microreact_drug_resistance %>% 
@@ -318,12 +366,12 @@ microreact_drug_resistance <- microreact_drug_resistance %>%
     erg11 != "WT" & fks1 !="WT" ~ "ERG11 & FKS1",
     fks1 =="WT" & erg11 == "WT" ~ "No AMR genes"
 ))
-
 ```
 
 ## Microreact Heat Map relating drug resistance and AMR genes
 
-```{r}
+
+```r
 microreact_drug_resistance %>% 
   count(drug_resistance, amr_gene) %>% 
   filter(drug_resistance!="NA") %>% 
@@ -338,14 +386,16 @@ microreact_drug_resistance %>%
        caption="Blank: n=0.
        Drugs:AMB= Amphotericin B, FCZ= Fluconazole, MCF= Micafungin, MDR= Multi-Drug Resistance, XDR= Extreme Drug Resistance (all 3),NR= No Drug Resistance.
        Data from Tracing the Evolutionary History and Global Expansion of Candida auris Using Population Genomic Analyses' by Chow et al 2020 ")
-  
 ```
+
+![](bis15l_project_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
 
 ## AMR Resistance over time
 
 Using global counts:
 
-```{r}
+
+```r
 microreact_drug_resistance %>% 
   filter(drug_resistance!="NA", drug_resistance!= "AMB") %>% 
  count(year, drug_resistance) %>% 
@@ -356,39 +406,84 @@ ggplot(aes(x=year, y=n, color=drug_resistance))+
   labs(title="Antifungal Drug Resistant Strain Counts by Year",
        x="Year",
        y="Count (Global)")
-
 ```
+
+![](bis15l_project_files/figure-html/unnamed-chunk-11-1.png)<!-- -->
 
 Using percentage of global cases:
 
 finding total cases per year:
-```{r}
+
+```r
 micro_case_totals <- microreact_drug_resistance %>% 
   group_by(year) %>% 
   summarize(total_cases=n_distinct(id)) %>% 
   print()
 ```
 
+```
+## # A tibble: 10 x 2
+##     year total_cases
+##    <dbl>       <int>
+##  1  2004           2
+##  2  2008           3
+##  3  2011           1
+##  4  2012          28
+##  5  2013          16
+##  6  2014          35
+##  7  2015          61
+##  8  2016          92
+##  9  2017          55
+## 10  2018          12
+```
+
 Finding drug resistant cases per year:
-```{r}
+
+```r
 micro_drug_totals <- microreact_drug_resistance %>% 
   group_by(year, drug_resistance) %>% 
   summarize(total_drug=n_distinct(id)) %>% 
   print()
 ```
 
-```{r}
+```
+## `summarise()` has grouped output by 'year'. You can override using the
+## `.groups` argument.
+```
+
+```
+## # A tibble: 31 x 3
+## # Groups:   year [10]
+##     year drug_resistance total_drug
+##    <dbl> <chr>                <int>
+##  1  2004 FCZ                      1
+##  2  2004 NR                       1
+##  3  2008 NR                       3
+##  4  2011 FCZ                      1
+##  5  2012 FCZ                     17
+##  6  2012 MDR                      9
+##  7  2012 NR                       2
+##  8  2013 FCZ                     12
+##  9  2013 MDR                      4
+## 10  2014 FCZ                     24
+## # ... with 21 more rows
+```
+
+
+```r
 #Ok I'm going to try to join these tables so there is a total case column for each year
 join_drug_totals <- full_join(micro_drug_totals, micro_case_totals, by="year")
 ```
 
-```{r}
+
+```r
 #I need to mutate a new column now to show the percentage of drug resistant cases 
 percent_drug_resistant <- join_drug_totals %>% 
   mutate(percent_of_total_cases=(total_drug/total_cases)*100)
 ```
 
-```{r}
+
+```r
 #Now a line graph of the percents!!
 percent_drug_resistant %>% 
 filter(drug_resistance!="NA", drug_resistance!= "AMB") %>% 
@@ -400,13 +495,15 @@ ggplot(aes(x=year, y=percent_of_total_cases, color=drug_resistance))+
        x="Year",
        y="Percent of Total Cases")+
   facet_wrap(~drug_resistance, ncol=2)
-
 ```
+
+![](bis15l_project_files/figure-html/unnamed-chunk-16-1.png)<!-- -->
 
 
 ## Shiny App using case counts and filling with AMR genes or drug resistance
 
-```{r}
+
+```r
 #gotta use the kelp palette
 colors <- paletteer::palettes_d_names
 my_palette <- paletteer_d("calecopal::kelp2")
@@ -414,15 +511,16 @@ my_palette <- paletteer_d("calecopal::kelp2")
 
 Adding the case counts data used for Shiny:
 
-```{r}
+
+```r
 case_counts <- microreact_drug_resistance %>% 
   count(country, year, amr_gene, drug_resistance) %>% 
   mutate(year=as.factor(year))
 ```
 
 
-```{r}
 
+```r
 ui <- dashboardPage( 
   dashboardHeader(title = "Case Counts per Year by Country"),
   dashboardSidebar(disable = T),
@@ -462,6 +560,8 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 ```
+
+`<div style="width: 100% ; height: 400px ; text-align: center; box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box;" class="muted well">Shiny applications not supported in static R Markdown documents</div>`{=html}
 ##  US Map from Microreact data:
 Focus on US
 
@@ -469,7 +569,8 @@ Focus on US
 
 Facet maps from 2012-2016
 
-```{r}
+
+```r
 microreact_coords_distinct <- microreact %>% 
   filter(year <=2016, country == "United States") %>% 
   select(latitude, longitude, year) %>% 
@@ -484,15 +585,38 @@ microreact_coords_dup <- microreact %>%
   get_dupes %>% 
   distinct() %>% 
   mutate(count=dupe_count)
+```
 
+```
+## No variable names specified - using all columns.
+```
+
+```r
 microreact_coords <- bind_rows(microreact_coords_distinct, 
                                                               microreact_coords_dup) %>% 
   arrange(year) %>% 
   print()
 ```
 
+```
+## # A tibble: 10 x 5
+##    latitude longitude  year count dupe_count
+##       <dbl>     <dbl> <dbl> <dbl>      <int>
+##  1     40.7     -74.0  2012     1         NA
+##  2     39.8    -100.   2013     1         NA
+##  3     40.7     -74.0  2013     1         NA
+##  4     40.1     -74.4  2015     1         NA
+##  5     40.7     -74.0  2015     1         NA
+##  6     39.5     -76.9  2016     1         NA
+##  7     40.7     -74.0  2016     1         NA
+##  8     39.8    -100.   2016     1         NA
+##  9     39.8    -100.   2016     3          3
+## 10     40.7     -74.0  2016     9          9
+```
+
 The Map:
-```{r}
+
+```r
 us_comp <- usa_sf()
 ggplot() + 
   geom_sf(data = us_comp) + 
@@ -502,8 +626,16 @@ ggplot() +
   labs(title = "US Cases 2012-2016")
 ```
 
+```
+## old-style crs object detected; please recreate object with a recent sf::st_crs()
+## old-style crs object detected; please recreate object with a recent sf::st_crs()
+```
+
+![](bis15l_project_files/figure-html/unnamed-chunk-21-1.png)<!-- -->
+
 ## Visualize the NCBI isolate data.
-```{r}
+
+```r
 ## Calculate the proportion of isolates from blood for each SNP cluster as an
 # indicator of bloodstream infection.
 isolation_sources <- ncbi_clinical_isolates %>% 
@@ -525,12 +657,17 @@ ggplot(data = isolation_sources) +
   coord_flip() +
   scale_fill_viridis_d(direction = -1) +
   theme_minimal()
+```
 
+![](bis15l_project_files/figure-html/unnamed-chunk-22-1.png)<!-- -->
+
+```r
 # SNP clusters associated with highest proportion of blood isolates are 
 # PDS000050611.11, PDS000050610.18, and PDS000050696.2
 ```
 
-```{r}
+
+```r
 # Find states with snp_clusters with the highest prop of bloodstream infections.
 blood_clusters <- ncbi_clinical_isolates %>% 
   filter(isolation_source == "blood",
@@ -540,17 +677,35 @@ blood_clusters %>%
  group_by(state) %>% 
   summarize(n = n()) %>% 
   arrange(desc(n))
+```
 
+```
+## # A tibble: 6 x 2
+##   state          n
+##   <fct>      <int>
+## 1 Florida       31
+## 2 New York      30
+## 3 New Jersey    16
+## 4 Illinois      13
+## 5 Maryland       6
+## 6 California     5
 ```
 
 ## Visualize the Google Trends data.
-```{r, message = FALSE}
+
+```r
 # Create word clouds for the related queries:
 # Load the related queries data.
 related <- read_csv("../Data/google_search_trends/searchterm_candidaauris/relatedQueries.csv", 
                     skip = 3,
                     col_names = TRUE)
+```
 
+```
+## Warning: One or more parsing issues, see `problems()` for details
+```
+
+```r
 # Separate top queries from rising queries.
 top_related <- related %>% 
   head(25)
@@ -571,7 +726,14 @@ top_counts <- top_related %>%
 # Create and preprocess a corpus for top queries.
 top_corpus <- Corpus(VectorSource(top_counts$query)) %>% 
   tm_map(removeWords, c("is", "of", "candida", "auris"))
+```
 
+```
+## Warning in tm_map.SimpleCorpus(., removeWords, c("is", "of", "candida", :
+## transformation drops documents
+```
+
+```r
 # Create a document term matrix from the corpus.
 # Each document (query) is represented by a set of tokens (words) and their counts.
 top_dtm <- TermDocumentMatrix(top_corpus) %>% 
@@ -598,13 +760,23 @@ ggplot(data = top_totals) +
   theme_minimal()
 ```
 
-```{r, message = FALSE}
+![](bis15l_project_files/figure-html/unnamed-chunk-24-1.png)<!-- -->
+
+
+```r
 ## Obtain counts for words in rising queries:
 # No count column, so word frequencies are the totals.
 # Create and preprocess a corpus for rising queries.
 rising_corpus <- Corpus(VectorSource(rising_related$query)) %>% 
   tm_map(removeWords, c("is", "of", "candida", "auris"))
+```
 
+```
+## Warning in tm_map.SimpleCorpus(., removeWords, c("is", "of", "candida", :
+## transformation drops documents
+```
+
+```r
 # create a document term matrix from the corpus.
 rising_dtm <- TermDocumentMatrix(rising_corpus) %>% 
   as.matrix()
@@ -621,8 +793,11 @@ ggplot(data = rising_totals) +
   theme_minimal()
 ```
 
+![](bis15l_project_files/figure-html/unnamed-chunk-25-1.png)<!-- -->
+
 ## Compare number of reported clinical cases and Google searches in 2021.
-```{r}
+
+```r
 ## Create the 2021 reported clinical cases map:
 # Extract center coordinates for each state from the state boundary map data:
 center_coords <- state.vbm.center %>% 
@@ -663,13 +838,17 @@ ggplot() +
   theme(plot.title = element_text(size = 14,
                                   margin = margin(t = 15, b = -15)),
         legend.margin = margin(10, 30, 10, 10))
-  
+```
 
+![](bis15l_project_files/figure-html/unnamed-chunk-26-1.png)<!-- -->
+
+```r
 # No cases in Oregon but high freq of searches from google trends data
 # voluntary reporting?
 ```
 
-```{r, message = FALSE}
+
+```r
 ## Create the 2021 Google searches map.
 # Load the Google searches data.
 searches_2021 <- read_csv("../Data/google_search_trends/searchterm_candidaauris/geoMap_2021.csv",
@@ -710,7 +889,10 @@ ggplot(data = searches_2021) +
         legend.margin = margin(10, 30, 10, 10))
 ```
 
-```{r}
+![](bis15l_project_files/figure-html/unnamed-chunk-27-1.png)<!-- -->
+
+
+```r
 # Make a copy of the 2021 reported cases map with only the states of interest
 # labeled.
 ggplot() +
@@ -730,6 +912,7 @@ ggplot() +
   theme(plot.title = element_text(size = 14,
                                   margin = margin(t = 15, b = -15)),
         legend.margin = margin(10, 30, 10, 10))
-   
 ```
+
+![](bis15l_project_files/figure-html/unnamed-chunk-28-1.png)<!-- -->
 

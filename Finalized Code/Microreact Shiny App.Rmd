@@ -22,7 +22,7 @@ library(paletteer)
 ```
 ## The Data:
 ```{r}
-microreact<- read_csv("Data/microreact_isolates.csv")
+microreact<- read_csv("../Data/microreact_isolates.csv")
 microreact <- janitor::clean_names(microreact)
 ```
 
