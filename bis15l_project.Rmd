@@ -1,6 +1,6 @@
 ---
 title: "bis15l_project"
-author: "Sidney Parel"
+author: "Sidney Parel & Kelsey Martin"
 date: "2/25/2022"
 output: html_document
 ---
@@ -21,7 +21,24 @@ library(paletteer)
 
 library(ggwordcloud)
 library(tm)
+
+library(shiny)
+library(shinydashboard)
+
+library(albersusa)
+library(viridis)
 ```
+
+
+## Load Microreact Global data set
+
+
+```{r}
+microreact<- read_csv("Data/microreact_isolates.csv")
+microreact <- janitor::clean_names(microreact)
+#View(microreact)
+```
+
 
 ## Load the U.S. clinical cases data sets.
 The reported clinical cases data sets for the years 2016 - 2021 contain the 
@@ -253,6 +270,236 @@ fig_animated <- fig +
 animate(fig_animated, nframes = 6, fps = 0.5, height = 450, width = 600)
 #anim_save("us_clinical_cases_map.gif")
 ```
+
+## View Microreact/ Chow et al data
+
+```{r}
+summary(microreact)
+```
+
+## Mutate new columns coding for genes and drug resistance
+
+
+Mutating Data for showing resistance:
+
+add column:
+
+```{r}
+#Here I am adding a column that codes for type of drug resistance
+
+microreact_drug_resistance <- microreact %>% 
+  mutate( drug_resistance = case_when(
+    fcz=="Not_Resistant"& mcf=="Not_Resistant"& amb=="Not_Resistant" ~ "NR",
+    fcz=="Resistant"& mcf=="Not_Resistant"& amb=="Not_Resistant" ~ "FCZ",
+    fcz=="Not_Resistant" & mcf=="Resistant" & amb=="Not_Resistant" ~ "MCF",
+    fcz=="Not_Resistant" & mcf=="Not_Resistant" & amb=="Resistant" ~ "AMB",
+    
+    fcz=="Resistant"& mcf=="Resistant"& amb=="Not_Resistant" ~ "MDR",
+    fcz=="Resistant"& mcf=="Not_Resistant"& amb=="Resistant" ~ "MDR",
+    fcz=="Not_Resistant"& mcf=="Resistant"& amb=="Resistant" ~ "MDR",
+    
+    fcz=="Resistant"& mcf=="Resistant"& amb=="Resistant" ~ "XDR"
+  ))
+```
+
+
+Mutating data for showing ERG11 and FKS1 gene presence:
+
+
+```{r}
+#Here I am adding another column that codes for presence or absence of known drug resistance genes
+
+microreact_drug_resistance <- microreact_drug_resistance %>% 
+  mutate( amr_gene = case_when(
+    erg11 != "WT" & fks1=="WT" ~ "ERG11",
+    fks1 !="WT"& erg11 == "WT" ~ "FKS1",
+    erg11 != "WT" & fks1 !="WT" ~ "ERG11 & FKS1",
+    fks1 =="WT" & erg11 == "WT" ~ "No AMR genes"
+))
+
+```
+
+## Microreact Heat Map relating drug resistance and AMR genes
+
+```{r}
+microreact_drug_resistance %>% 
+  count(drug_resistance, amr_gene) %>% 
+  filter(drug_resistance!="NA") %>% 
+  ggplot(aes(drug_resistance, amr_gene, fill=n))+
+  geom_tile(color="black")+
+  geom_text(aes(label = n), color = "white", size = 4)+
+  scale_fill_viridis()+
+  theme_classic()+
+  labs(title="Heat Map Comparison of AMR Genes and Drug Resistance",
+       x="Drug Resistance",
+       y="AMR Gene",
+       caption="Blank: n=0.
+       Drugs:AMB= Amphotericin B, FCZ= Fluconazole, MCF= Micafungin, MDR= Multi-Drug Resistance, XDR= Extreme Drug Resistance (all 3),NR= No Drug Resistance.
+       Data from Tracing the Evolutionary History and Global Expansion of Candida auris Using Population Genomic Analyses' by Chow et al 2020 ")
+  
+```
+
+## AMR Resistance over time
+
+Using global counts:
+
+```{r}
+microreact_drug_resistance %>% 
+  filter(drug_resistance!="NA", drug_resistance!= "AMB") %>% 
+ count(year, drug_resistance) %>% 
+ggplot(aes(x=year, y=n, color=drug_resistance))+
+  geom_line(size=1.25)+
+  theme_classic()+
+  scale_color_viridis_d()+
+  labs(title="Antifungal Drug Resistant Strain Counts by Year",
+       x="Year",
+       y="Count (Global)")
+
+```
+
+Using percentage of global cases:
+
+finding total cases per year:
+```{r}
+micro_case_totals <- microreact_drug_resistance %>% 
+  group_by(year) %>% 
+  summarize(total_cases=n_distinct(id)) %>% 
+  print()
+```
+
+Finding drug resistant cases per year:
+```{r}
+micro_drug_totals <- microreact_drug_resistance %>% 
+  group_by(year, drug_resistance) %>% 
+  summarize(total_drug=n_distinct(id)) %>% 
+  print()
+```
+
+```{r}
+#Ok I'm going to try to join these tables so there is a total case column for each year
+join_drug_totals <- full_join(micro_drug_totals, micro_case_totals, by="year")
+```
+
+```{r}
+#I need to mutate a new column now to show the percentage of drug resistant cases 
+percent_drug_resistant <- join_drug_totals %>% 
+  mutate(percent_of_total_cases=(total_drug/total_cases)*100)
+```
+
+```{r}
+#Now a line graph of the percents!!
+percent_drug_resistant %>% 
+filter(drug_resistance!="NA", drug_resistance!= "AMB") %>% 
+ggplot(aes(x=year, y=percent_of_total_cases, color=drug_resistance))+
+  geom_line(size=1.25)+
+  theme_classic()+
+  scale_color_viridis_d()+
+  labs(title="Antifungal Drug Resistant Strain Percentage of Total Cases by Year",
+       x="Year",
+       y="Percent of Total Cases")+
+  facet_wrap(~drug_resistance, ncol=2)
+
+```
+
+
+## Shiny App using case counts and filling with AMR genes or drug resistance
+
+```{r}
+#gotta use the kelp palette
+colors <- paletteer::palettes_d_names
+my_palette <- paletteer_d("calecopal::kelp2")
+```
+
+Adding the case counts data used for Shiny:
+
+```{r}
+case_counts <- microreact_drug_resistance %>% 
+  count(country, year, amr_gene, drug_resistance) %>% 
+  mutate(year=as.factor(year))
+```
+
+
+```{r}
+
+ui <- dashboardPage( 
+  dashboardHeader(title = "Case Counts per Year by Country"),
+  dashboardSidebar(disable = T),
+  dashboardBody(
+  fluidRow(
+  box(title = "Plot Options", width = 3,
+      #select country dropdown
+  selectInput("country",
+              " Select Country",
+              choices=unique(case_counts$country)), 
+              selected = "United States"),
+  #fill button to choose AMR gene or drug resistance
+  radioButtons("x", 
+                             "Select Fill Variable", 
+                             choices=c("amr_gene", "drug_resistance"), selected = "drug_resistance"),
+  
+  ), # close the first box
+  box(title = "Case Count", width = 7,
+  plotOutput("plot", width = "400px", height = "300px")
+  ) # close the second box
+  ) # close the row
+  ) # close the dashboard body
+ # close the ui
+
+server <- function(input, output, session) { 
+  output$plot <- renderPlot({
+    case_counts %>% 
+      filter(country==input$country) %>%
+  ggplot(aes_string(x = "year", y="n", fill=input$x)) +
+      geom_col() + 
+      theme_classic()+
+       scale_fill_manual(values = my_palette)+
+      labs(x="Year")
+  })
+  session$onSessionEnded(stopApp)
+  }
+
+shinyApp(ui, server)
+```
+##  US Map from Microreact data:
+Focus on US
+
+2004-2016 to give baseline for before CDC started tracking
+
+Facet maps from 2012-2016
+
+```{r}
+microreact_coords_distinct <- microreact %>% 
+  filter(year <=2016, country == "United States") %>% 
+  select(latitude, longitude, year) %>% 
+  arrange(year) %>% 
+  distinct() %>% 
+  mutate(count = 1)
+#record the duplicate cases in same location so i can make a count coulomn to make = to the size of the point
+microreact_coords_dup <- microreact %>% 
+  filter(year <=2016, country == "United States") %>% 
+  select(latitude, longitude, year) %>% 
+  arrange(year) %>%
+  get_dupes %>% 
+  distinct() %>% 
+  mutate(count=dupe_count)
+
+microreact_coords <- bind_rows(microreact_coords_distinct, 
+                                                              microreact_coords_dup) %>% 
+  arrange(year) %>% 
+  print()
+```
+
+The Map:
+```{r}
+us_comp <- usa_sf()
+ggplot() + 
+  geom_sf(data = us_comp) + 
+  geom_point(data=microreact_coords, aes(longitude, latitude, size=count), color="blue")+
+  theme_linedraw()+
+  facet_wrap(~year, ncol = 2)+
+  labs(title = "US Cases 2012-2016")
+```
+
 ## Visualize the NCBI isolate data.
 ```{r}
 ## Calculate the proportion of isolates from blood for each SNP cluster as an
@@ -296,10 +543,9 @@ blood_clusters %>%
 
 ## Visualize the Google Trends data.
 ```{r, message = FALSE}
-## Create word clouds for the related queries:
+# Create word clouds for the related queries:
 # Load the related queries data.
-related <- read_csv("Data/google_search_trends/
-                    searchterm_candidaauris/relatedQueries.csv", 
+related <- read_csv("Data/google_search_trends/searchterm_candidaauris/relatedQueries.csv", 
                     skip = 3,
                     col_names = TRUE)
 
@@ -424,8 +670,7 @@ ggplot() +
 ```{r, message = FALSE}
 ## Create the 2021 Google searches map.
 # Load the Google searches data.
-searches_2021 <- read_csv("Data/google_search_trends/
-                          searchterm_candidaauris/geoMap_2021.csv",
+searches_2021 <- read_csv("Data/google_search_trends/searchterm_candidaauris/geoMap_2021.csv",
                           skip = 2,
                           col_names = TRUE) %>% 
   rename(region = Region,
