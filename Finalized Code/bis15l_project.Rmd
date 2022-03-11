@@ -6,6 +6,15 @@ output:
   html_document: 
     keep_md: yes
 ---
+
+## Introduction
+
+For our project we decided to do an exploratory data analysis on the spread of a newly emerging fungal pathogen *C.auris*. This topic is of interest to us due to our shared interest in Epidemiology, and also specifically the topic of Antimicrobial Resistance.
+
+*C.auris* is a member of the *Candida* family that causes Candidiasis, which is an infection that can be deadly in immunocompromised individuals, with mortality rates of 35-80% in ICU patients [1]. *C.auris* is also characterized by its propensity to develop antifungal resistance, and its ability to form biofilms. This ability allows increased survival and colonization of hospital and healthcare environments. Colonization of healthcare worker's skin or common hospital surfaces can lead to outbreaks of deadly hospital acquired infections.[3]
+
+Also another reason we chose this topic was the ability of *C.auris* to coinfect with COVID-19 cases via ventilator use [4]. The increased population of sick individuals on ventilators has increased during the pandemic, so it would be interesting to explore the incidence of *C.auris* in connection with that.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo=TRUE)
 library(tidyverse)
@@ -31,6 +40,12 @@ library(albersusa)
 library(viridis)
 ```
 
+# Data
+
+The main AMR data was taken from "Tracing the Evolutionary History and Global Expansion of Candida auris Using Population Genomic Analyses" by Chow *et al* 2020 [5].
+
+This data spanned from 2004 to 2018 and was used to provide a base line for isolates prior to when the CDC began tracking incidences of *C.auris* in 2018.
+
 
 ## Load Microreact Global data set
 
@@ -40,6 +55,8 @@ microreact<- read_csv("../Data/microreact_isolates.csv")
 microreact <- janitor::clean_names(microreact)
 #View(microreact)
 ```
+
+## The CDC data set (2016-2021):
 
 
 ## Load the U.S. clinical cases data sets.
@@ -341,6 +358,15 @@ microreact_drug_resistance %>%
   
 ```
 
+### Heat Map Analysis:
+-  Biggest overlap between categories is in the ERG11 gene and Fluconazole Resistance
+    -  This is a relatively well studied association as mutations of the ERG11 gene have been found to reduce effectiveness of Fluconazole drug
+-  Also moderate overlap between the No AMR gene and No Drug Resistance (NR) categories
+    -  This is a good check to see that the genes are actually influencing drug resistance in the strains
+    
+
+
+
 ## AMR Resistance over time
 
 Using global counts:
@@ -358,6 +384,11 @@ ggplot(aes(x=year, y=n, color=drug_resistance))+
        y="Count (Global)")
 
 ```
+
+### Global Drug Resistance Counts over Time Analysis:
+-  General upwards trend in drug resistant cases
+-  However, total counts increased over time as well, so study of the proportion of cases would be more useful
+
 
 Using percentage of global cases:
 
@@ -402,6 +433,11 @@ ggplot(aes(x=year, y=percent_of_total_cases, color=drug_resistance))+
   facet_wrap(~drug_resistance, ncol=2)
 
 ```
+
+### Analysis of Drug Resistant Isolate as Percentage of Totals:
+-  NR (bottom left), has had a marked decrease over time
+-  All other categories have had a general upwards trend, showing general incidence of drug resistance has increased over time
+-  AMB has been excluded from the analysis due to the small number of cases
 
 
 ## Shiny App using case counts and filling with AMR genes or drug resistance
@@ -462,7 +498,9 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 ```
+
 ##  US Map from Microreact data:
+
 Focus on US
 
 2004-2016 to give baseline for before CDC started tracking
@@ -501,6 +539,11 @@ ggplot() +
   facet_wrap(~year, ncol = 2)+
   labs(title = "US Cases 2012-2016")
 ```
+
+###
+-  Relatively low number of cases across the US
+-  Increases as we see a larger cluster in 2016
+
 
 ## Visualize the NCBI isolate data.
 ```{r}
@@ -732,4 +775,27 @@ ggplot() +
         legend.margin = margin(10, 30, 10, 10))
    
 ```
+
+
+
+## Conclusions
+
+Using a variety of different data sources, we were able to get an overall picture od *C.auris* as an emerging pathogen that is increasing globally and nationally in both incidence and levels of drug resistance.
+
+We also showed through analysis of the US Google trends data and connection to CDC reporting data that outbreaks can be connected with search queries. We even found a gap in the CDC reported data using the Google Trends data, showing that due to reporting to the CDC being voluntary, not all cases will have been identified in our data.
+
+Overall, *C.auris* is a pathogen that should be monitored carefully in the future, and we can do that with a variety of methods including scientific publications, government agency data collection, and google search data.
+
+
+
+## References:
+
+[1] Xiao, Z., Wang, Q., Zhu, F. et al. Epidemiology, species distribution, antifungal susceptibility and mortality risk factors of candidemia among critically ill patients: a retrospective study from 2011 to 2017 in a teaching hospital in China. Antimicrob Resist Infect Control 8, 89 (2019). https://doi.org/10.1186/s13756-019-0534-2
+
+[2] Horton, Mark V, and Jeniel E Nett. “Candida auris infection and biofilm formation: going beyond the surface.” Current clinical microbiology reports vol. 7,3 (2020): 51-56. doi:10.1007/s40588-020-00143-7
+
+[3] https://www.cdc.gov/fungal/covid-fungal.html
+
+[4] Chow, Nancy A., et al. "Tracing the evolutionary history and global expansion of Candida auris using population genomic analyses." MBio 11.2 (2020): e03364-19.
+
 
